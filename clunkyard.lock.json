@@ -1,0 +1,29 @@
+{
+  "version": "v2.0.0-kit.1",
+  "sdkVersion": "2.0.0",
+  "language": "ocaml",
+  "portable": false,
+  "engine": {
+    "file": "clunkyard-engine-v2.0.0-kit.1.tar.gz",
+    "url": "https://github.com/clunkyard/game-kit/releases/download/v2.0.0-kit.1/clunkyard-engine-v2.0.0-kit.1.tar.gz",
+    "bytes": 7071301,
+    "sha256": "0b9cfa6958a952c32388602821ec4275e61400255f91b212f9c2a9220f8a0d86",
+    "expandedBytes": 33794538
+  },
+  "sdk": {
+    "file": "clunkyard-sdk-ocaml-linux-x64-v2.0.0-kit.1.tar.gz",
+    "url": "https://github.com/clunkyard/game-kit/releases/download/v2.0.0-kit.1/clunkyard-sdk-ocaml-linux-x64-v2.0.0-kit.1.tar.gz",
+    "bytes": 745036,
+    "sha256": "9d039d4977d6c0295b9fd17264673273b65c7b2a3975b611d2695dbcd2a3d53e",
+    "expandedBytes": 3697340
+  },
+  "rebuildBindings": [
+    "ocaml"
+  ],
+  "tools": [
+    "node",
+    "make",
+    "ocamlopt",
+    "ocamlc"
+  ]
+}
