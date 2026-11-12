@@ -48,17 +48,6 @@ let clamp value = Angles.clamp value (-1.) 1.
 let steer towards current = clamp (Angles.angle_diff towards current /. 45.)
 let on_start robot = free := Match.is_3d robot && (Arena.gravity robot).z = 0.
 
-(* The calibration kernel, xorshift-sqrt v1; safe to delete. *)
-let calibration_work work tick =
-  let x = ref (Int64.logxor 88172645463325252L (Int64.of_int tick)) and sum = ref 0. in
-  for _ = 1 to work do
-    x := Int64.logxor !x (Int64.shift_left !x 13);
-    x := Int64.logxor !x (Int64.shift_right_logical !x 7);
-    x := Int64.logxor !x (Int64.shift_left !x 17);
-    sum := !sum +. sqrt (Int64.to_float (Int64.shift_right_logical !x 11))
-  done;
-  (int_of_float (floor !sum) + Int64.to_int (Int64.shift_right_logical !x 40)) mod 1000000
-
 let on_turn robot =
   let position=Me.position robot and heading=Me.heading robot and pitch=Me.pitch robot in
   Drive.forces robot ~brake:0.2 ();
@@ -97,8 +86,5 @@ let on_turn robot =
     let climb=if zone.shape="sphere" then Angles.elevation_to position zone.center else 0. in
     Drive.set robot ~throttle:0.8 ~turn:(clamp(Angles.angle_diff(Angles.bearing_to position zone.center)heading/.30.)) ~pitch_turn:(clamp((climb-.pitch)/.30.)) ()
   | _ -> ());
-  (* Only the arena's calibration sends work. *)
-  match Raw.number robot "state.calibration.work" with
-  | Some work when Float.is_integer work && work>0. -> Status.set robot ~text:"WORK" ~value:(float(calibration_work(int_of_float work)(Clock.tick robot))) ()
-  | _ -> ()
+  ()
 let () = run ~on_start ~on_turn ()
