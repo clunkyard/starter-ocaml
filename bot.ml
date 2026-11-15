@@ -7,7 +7,8 @@
    clock: tick seconds remaining_ticks
    arena: size gravity terrain_kind ground_height(x y)
    me: health position velocity heading pitch roll angular_velocity
-     attitude grounded altitude applied
+     attitude grounded altitude applied hull_mounts to_mount(heading pitch)
+     from_mount(heading pitch) mount_toward(point)
    battery: charge capacity regen sustainable_drive compute
      drive_cost(fraction)
    drive: hover_lift
@@ -29,7 +30,8 @@
    score: me best armour
    angles: normalize(degrees) angle_diff(target current)
      bearing_to(from to) elevation_to(from to) direction(heading pitch)
-     distance(a b) clamp(value low high)
+     distance(a b) to_chassis(heading pitch attitude)
+     from_chassis(heading pitch attitude) clamp(value low high)
    raw: number(path) text(path) has(path) flag(path) count(path) line()
    Controls: drive.set(throttle turn pitch_turn)
      drive.forces(thrust strafe lift yaw_torque pitch_torque roll_torque brake)
@@ -44,6 +46,8 @@
 *)
 open Clunkyard
 let free = ref false
+(* Dodges taken, and the tick the current one ends. *)
+let dodges = ref 0 and dodge_end = ref 0
 let clamp value = Angles.clamp value (-1.) 1.
 let steer towards current = clamp (Angles.angle_diff towards current /. 45.)
 let on_start robot = free := Match.is_3d robot && (Arena.gravity robot).z = 0.
@@ -56,6 +60,7 @@ let on_turn robot =
     let throttle=if target.range>350. then 0.7 else if target.range<200. then -0.4 else 0.2 in
     Drive.set robot ~throttle ~turn:(steer target.bearing heading) ~pitch_turn:(steer target.elevation pitch) ();
     Scanner.set robot ~heading:target.bearing ~arc:20. ~pitch:target.elevation ();
+    (* Gun.lead is the intercept if the target holds course. *)
     let power=Gun.power_for_flight_time robot target.range 1. in
     let h,p=match Gun.lead robot target power with None->target.bearing,target.elevation|Some aim->aim.heading,aim.pitch in
     Gun.aim robot ~heading:h ~pitch:p ();
@@ -75,6 +80,20 @@ let on_turn robot =
     Drive.set robot ~throttle:0.5 ~turn:0.33 ~pitch_turn:(steer 0. pitch) ();
     Scanner.set robot ~heading:(Angles.normalize((Scanner.last robot).heading+.36.)) ~arc:40. ~pitch:up ();
     Status.set robot ~text:"SEARCH" ());
+  (* A simple dodge: vary it, or predict the shooter. *)
+  let tick=Clock.tick robot in
+  if tick >= !dodge_end && List.exists (fun (c:contact) -> c.source="muzzle") (Sensors.cues robot) then begin
+    incr dodges; dodge_end := tick+10
+  end;
+  if tick < !dodge_end then begin
+    (* Off the line of fire: left, then right next time (turn is positive left, strafe positive right). *)
+    let left= !dodges mod 2=1 in
+    if Match.control robot="forces" then begin
+      Drive.set robot ~throttle:0.5 ();
+      Drive.forces robot ~strafe:(if left then -1. else 1.) ()
+    end else Drive.set robot ~throttle:1. ~turn:(if left then 1. else -1.) ();
+    Status.set robot ~text:(if left then "dodge:left" else "dodge:right") ~value:(float !dodges) ()
+  end;
   if Battery.charge robot < Battery.capacity robot /. 4. then Drive.set robot ~throttle:(Option.value(Drive.get_throttle robot)~default:0.*.0.5) ();
   (match Nav.storm robot with
   | Some storm when Option.value(Nav.storm_margin robot position)~default:neg_infinity > -60. ->
